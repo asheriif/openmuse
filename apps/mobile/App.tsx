@@ -19,6 +19,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  useColorScheme,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -39,7 +40,18 @@ import { ComputerDraftProvider } from "./src/computer-drafts";
 import { Details } from "./src/details";
 import { BrowserScreen, CalendarScreen, FilesScreen, MailScreen } from "./src/screens";
 import { ThreadsProvider, ThreadsSheet, useMuseThread } from "./src/threads";
-import { Button, Card, colors, ErrorNotice, Field, IconButton, Mascot, s } from "./src/ui";
+import {
+  applyScheme,
+  Button,
+  Card,
+  colors,
+  ErrorNotice,
+  Field,
+  IconButton,
+  Mascot,
+  s,
+  tint,
+} from "./src/ui";
 import { type Detail, useWorkspace, WorkspaceContext } from "./src/workspace";
 
 const nav: { id: Section; label: string; icon: LucideIcon }[] = [
@@ -86,9 +98,13 @@ export default function App() {
   useEffect(() => {
     void connect();
   }, [connect]);
+  // Follow the system theme. Palettes switch before children render, and a scheme change
+  // re-renders the whole tree, so every component reads the new colors.
+  const scheme = useColorScheme() === "dark" ? "dark" : "light";
+  applyScheme(scheme);
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       {token ? (
         <CopilotKitProvider
           runtimeUrl={`${API_URL}/api/copilotkit`}
@@ -436,7 +452,7 @@ function WorkspaceShell({
                 width: "100%",
                 maxWidth: 370,
                 padding: 5,
-                backgroundColor: "#FFF",
+                backgroundColor: tint("#FFF"),
                 borderRadius: 40,
                 shadowColor: "#132631",
                 shadowOffset: { width: 0, height: 2 },
@@ -444,7 +460,7 @@ function WorkspaceShell({
                 shadowRadius: 18,
                 elevation: 3,
                 borderWidth: 1,
-                borderColor: "#F8F8F8",
+                borderColor: tint("#F8F8F8"),
               }}
             >
               {nav.map((item) => {
@@ -461,7 +477,7 @@ function WorkspaceShell({
                       height: 47,
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: active ? "#F0F1F2" : "transparent",
+                      backgroundColor: active ? tint("#F0F1F2") : "transparent",
                       borderRadius: 28,
                     }}
                   >
@@ -490,13 +506,13 @@ function WorkspaceShell({
               ]}
             >
               <Check size={16} color={colors.blue} />
-              <Text style={{ color: "#FFF", fontSize: 13, flexShrink: 1 }}>{toast}</Text>
+              <Text style={{ color: tint("#FFF"), fontSize: 13, flexShrink: 1 }}>{toast}</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Dismiss notification"
                 onPress={clearToast}
               >
-                <X size={16} color="#FFF" />
+                <X size={16} color={tint("#FFF")} />
               </Pressable>
             </View>
           </View>

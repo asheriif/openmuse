@@ -5,7 +5,7 @@ import type { Artifact, BrowserSession } from "../../../packages/domain/src";
 import type { AgentArtifact, AgentTask } from "../../../packages/domain/src/agent";
 import { ArtifactCard, TaskCard } from "./agent-ui";
 import { BrowserThreadCard } from "./computer";
-import { Button, Card, colors, ErrorNotice, s } from "./ui";
+import { Button, Card, colors, ErrorNotice, s, tint } from "./ui";
 import { useWorkspace } from "./workspace";
 
 export function FileThreadCard({ file }: { file: Artifact }) {
@@ -17,8 +17,8 @@ export function FileThreadCard({ file }: { file: Artifact }) {
       onPress={() => open({ type: "file", file })}
       style={{ width: "100%", maxWidth: 440 }}
     >
-      <Card style={{ padding: 18, backgroundColor: "#F0F1F2", gap: 18 }}>
-        <View style={{ borderRadius: 12, padding: 22, backgroundColor: "#FFF", gap: 14 }}>
+      <Card style={{ padding: 18, backgroundColor: tint("#F0F1F2"), gap: 18 }}>
+        <View style={{ borderRadius: 12, padding: 22, backgroundColor: tint("#FFF"), gap: 14 }}>
           <Text style={[s.heading, { fontSize: 18 }]}>{file.name.replace(/\.pdf$/i, "")}</Text>
           {file.fields?.length ? (
             file.fields.slice(0, 4).map((field) => (

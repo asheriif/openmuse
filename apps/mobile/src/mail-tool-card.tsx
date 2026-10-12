@@ -3,7 +3,7 @@ import { useContext } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { z } from "zod";
 import { BrowserRunContext } from "./browser-tool-card";
-import { Button, Card, colors, ErrorNotice, s } from "./ui";
+import { Button, Card, colors, ErrorNotice, s, tint } from "./ui";
 import { useWorkspace } from "./workspace";
 
 const messageSchema = z.object({
@@ -80,10 +80,16 @@ export function MailToolCard({
   if (!message) return <Text style={s.muted}>No messages in this thread.</Text>;
   return (
     <Card
-      style={{ padding: 18, gap: 14, backgroundColor: "#F0EFF2", maxWidth: 440, width: "100%" }}
+      style={{
+        padding: 18,
+        gap: 14,
+        backgroundColor: tint("#F0EFF2"),
+        maxWidth: 440,
+        width: "100%",
+      }}
     >
       <View style={[s.row, { gap: 10 }]}>
-        <View style={[s.iconBox, { backgroundColor: "#E9F5FC" }]}>
+        <View style={[s.iconBox, { backgroundColor: tint("#E9F5FC") }]}>
           <Mail size={20} color={colors.blueDark} />
         </View>
         <View style={{ flex: 1 }}>

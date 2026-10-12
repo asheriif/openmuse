@@ -22,7 +22,7 @@ import type {
 } from "../../../packages/domain/src/computer";
 import { useComputerDraft } from "./computer-drafts";
 import { DesktopStream } from "./desktop-stream";
-import { Button, Card, colors, Empty, ErrorNotice, Field, LinkRow, s, timeLabel } from "./ui";
+import { Button, Card, colors, Empty, ErrorNotice, Field, LinkRow, s, timeLabel, tint } from "./ui";
 import { useWorkspace } from "./workspace";
 
 const mono = Platform.OS === "ios" ? "Menlo" : "monospace";
@@ -213,7 +213,9 @@ export function LinuxWorkspace({
         <>
           <View style={{ display: tab === "Terminal" ? "flex" : "none", gap: 16 }}>
             {editingCommand || command.length > 0 || snapshot.commands.length === 0 ? (
-              <View style={{ borderRadius: 22, backgroundColor: "#F1F3F4", padding: 18, gap: 8 }}>
+              <View
+                style={{ borderRadius: 22, backgroundColor: tint("#F1F3F4"), padding: 18, gap: 8 }}
+              >
                 <Text style={{ color: colors.muted, fontSize: 12, fontFamily: mono }}>
                   TERMINAL
                 </Text>
@@ -343,7 +345,7 @@ function CommandReceipt({ run }: { run: ComputerCommand }) {
             {
               color:
                 run.status === "succeeded"
-                  ? "#248258"
+                  ? tint("#248258")
                   : run.status === "running"
                     ? colors.blueDark
                     : colors.danger,
@@ -537,7 +539,7 @@ function ComputerFiles({ running, active }: { running: boolean; active: boolean 
         {editor?.path || path}
       </Text>
       <ErrorNotice error={error} />
-      {!!notice && <Text style={[s.small, { color: "#248258" }]}>{notice}</Text>}
+      {!!notice && <Text style={[s.small, { color: tint("#248258") }]}>{notice}</Text>}
       {!running && (
         <Text style={s.muted}>Start the computer to browse or edit its saved files.</Text>
       )}

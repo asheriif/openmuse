@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { ComputerSnapshot } from "../../../packages/domain/src/computer";
 import { useComputerDraft } from "./computer-drafts";
 import { DesktopStream } from "./desktop-stream";
-import { Button, Card, colors, ErrorNotice, s } from "./ui";
+import { Button, Card, colors, ErrorNotice, s, tint } from "./ui";
 import { useWorkspace } from "./workspace";
 
 const resultSchema = z.object({
@@ -90,7 +90,13 @@ export function DesktopToolCard({
   }
   return (
     <Card
-      style={{ padding: 13, backgroundColor: "#EEEEF0", gap: 12, width: "100%", maxWidth: 640 }}
+      style={{
+        padding: 13,
+        backgroundColor: tint("#EEEEF0"),
+        gap: 12,
+        width: "100%",
+        maxWidth: 640,
+      }}
     >
       <View style={[s.row, { gap: 10 }]}>
         <View style={[s.iconBox, { width: 36, height: 36, borderRadius: 10 }]}>
@@ -110,7 +116,7 @@ export function DesktopToolCard({
       </View>
       <ErrorNotice error={value?.error || error} />
       {latest && snapshot && !running ? (
-        <View style={{ backgroundColor: "#FAFAFB", borderRadius: 12, padding: 16, gap: 10 }}>
+        <View style={{ backgroundColor: tint("#FAFAFB"), borderRadius: 12, padding: 16, gap: 10 }}>
           <Text style={s.small}>
             The computer is offline. Start it to see the desktop; apps that were open are closed.
           </Text>

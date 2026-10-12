@@ -58,6 +58,7 @@ import {
   Sheet,
   s,
   timeLabel,
+  tint,
 } from "./ui";
 import { useWorkspace } from "./workspace";
 
@@ -82,7 +83,7 @@ export function TodayScreen() {
       <View
         style={[
           {
-            backgroundColor: "#E8F2F8",
+            backgroundColor: tint("#E8F2F8"),
             borderRadius: 24,
             padding: 32,
             minHeight: 228,
@@ -107,7 +108,7 @@ export function TodayScreen() {
           >
             Your day, with a little{"\n"}more room to breathe.
           </Text>
-          <Text style={[s.muted, { maxWidth: 420, color: "#617680" }]}>
+          <Text style={[s.muted, { maxWidth: 420, color: tint("#617680") }]}>
             {events.length ? `${events.length} things on your calendar` : "Your calendar has room"}
             {unread.length ? `, ${unread.length} unread emails` : ""}.{"\n"}Let’s make space for
             what matters.
@@ -129,7 +130,7 @@ export function TodayScreen() {
                 width: 190,
                 height: 190,
                 borderRadius: 100,
-                backgroundColor: "#DAEAF2",
+                backgroundColor: tint("#DAEAF2"),
               }}
             />
             <View
@@ -139,7 +140,7 @@ export function TodayScreen() {
                 height: 145,
                 borderRadius: 80,
                 borderWidth: 1,
-                borderColor: "#C8DBE6",
+                borderColor: tint("#C8DBE6"),
               }}
             />
             <Mascot size={94} />
@@ -152,13 +153,13 @@ export function TodayScreen() {
                   left: -19,
                   padding: 11,
                   gap: 7,
-                  backgroundColor: "#FFF",
+                  backgroundColor: tint("#FFF"),
                   borderRadius: 13,
                   transform: [{ rotate: "-7deg" }],
                 },
               ]}
             >
-              <Check size={14} color="#739174" />
+              <Check size={14} color={tint("#739174")} />
               <Text style={s.small}>A lighter day</Text>
             </View>
             <View
@@ -170,7 +171,7 @@ export function TodayScreen() {
                   right: -8,
                   padding: 12,
                   gap: 8,
-                  backgroundColor: "#FFF",
+                  backgroundColor: tint("#FFF"),
                   borderRadius: 13,
                   transform: [{ rotate: "5deg" }],
                 },
@@ -304,7 +305,12 @@ export function TodayScreen() {
                 </View>
                 {m.unread && (
                   <View
-                    style={{ width: 5, height: 5, borderRadius: 4, backgroundColor: "#78ABD0" }}
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: 4,
+                      backgroundColor: tint("#78ABD0"),
+                    }}
                   />
                 )}
               </Pressable>
@@ -319,7 +325,7 @@ export function TodayScreen() {
         </Card>
       </View>
       <View style={{ flexDirection: wide ? "row" : "column", gap: 22 }}>
-        <Card style={{ flex: 1, backgroundColor: "#F0F0E7" }}>
+        <Card style={{ flex: 1, backgroundColor: tint("#F0F0E7") }}>
           <SectionHeading title="A hand with the little things" />
           <Text style={[s.muted, { marginBottom: 15 }]}>
             Start with a thought. We’ll take it from there.
@@ -334,7 +340,7 @@ export function TodayScreen() {
               onPress={() => ask(prompt)}
               style={[
                 s.between,
-                { borderTopWidth: 1, borderTopColor: "#E1E2D9", paddingVertical: 13 },
+                { borderTopWidth: 1, borderTopColor: tint("#E1E2D9"), paddingVertical: 13 },
               ]}
             >
               <Text style={[s.text, { fontSize: 12 }]}>{prompt}</Text>
@@ -434,7 +440,7 @@ export function AgendaRow({
           width: 3,
           height: 42,
           borderRadius: 4,
-          backgroundColor: ["#BCDAEB", "#C7D6AB", "#D9CDEA"][index % 3],
+          backgroundColor: [tint("#BCDAEB"), tint("#C7D6AB"), tint("#D9CDEA")][index % 3],
         }}
       />
       <View style={{ flex: 1, gap: 3 }}>
@@ -486,7 +492,7 @@ export function MailScreen() {
               gap: 9,
               flex: 1,
               minWidth: 200,
-              backgroundColor: "#FFF",
+              backgroundColor: tint("#FFF"),
               borderWidth: 1,
               borderColor: colors.line,
               borderRadius: 12,
@@ -570,7 +576,7 @@ export function MailScreen() {
               </View>
               {m.unread && (
                 <View
-                  style={{ width: 6, height: 6, borderRadius: 4, backgroundColor: "#83B5D3" }}
+                  style={{ width: 6, height: 6, borderRadius: 4, backgroundColor: tint("#83B5D3") }}
                 />
               )}
             </Pressable>
@@ -764,7 +770,7 @@ export function CalendarScreen() {
                     backgroundColor: [...events, ...w.events].some(
                       (e) => e.calendarId === calendarId && eventDate(e) === key,
                     )
-                      ? "#8DB6CA"
+                      ? tint("#8DB6CA")
                       : "transparent",
                   }}
                 />
@@ -907,7 +913,9 @@ export function BrowserScreen() {
                     {b.url}
                   </Text>
                 </View>
-                <Chip tint={b.status === "active" ? colors.green : colors.canvas}>{b.status}</Chip>
+                <Chip background={b.status === "active" ? colors.green : colors.canvas}>
+                  {b.status}
+                </Chip>
                 <ArrowUpRight size={17} color={colors.muted} />
               </View>
               {!!b.previewUrl && (
@@ -999,7 +1007,7 @@ export function FilesScreen() {
               <View
                 style={{
                   height: 175,
-                  backgroundColor: "#EDEFEA",
+                  backgroundColor: tint("#EDEFEA"),
                   justifyContent: "center",
                   alignItems: "center",
                 }}
@@ -1009,11 +1017,11 @@ export function FilesScreen() {
                     width: 93,
                     height: 121,
                     borderRadius: 5,
-                    backgroundColor: "#FFF",
+                    backgroundColor: tint("#FFF"),
                     padding: 14,
                     transform: [{ rotate: "-4deg" }],
                     borderWidth: 1,
-                    borderColor: "#DDE3DD",
+                    borderColor: tint("#DDE3DD"),
                   }}
                 >
                   <View style={[s.row, { gap: 5, marginBottom: 15 }]}>
@@ -1025,7 +1033,7 @@ export function FilesScreen() {
                       key={width}
                       style={{
                         height: 3,
-                        backgroundColor: i === 0 ? "#A4BED0" : "#E3E7E3",
+                        backgroundColor: i === 0 ? tint("#A4BED0") : tint("#E3E7E3"),
                         width: `${width}%`,
                         marginBottom: 7,
                         borderRadius: 3,
@@ -1113,9 +1121,9 @@ export function ActivityScreen() {
                 <Text style={s.small}>{relativeDate(a.createdAt)}</Text>
               </View>
               <Chip
-                tint={
+                background={
                   a.status === "failed"
-                    ? "#FBEFED"
+                    ? tint("#FBEFED")
                     : a.status === "awaiting_review"
                       ? colors.lavender
                       : colors.canvas
@@ -1264,7 +1272,9 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
                   : "Connected"
                 : "Available integrations"}
             </Text>
-            <View style={{ paddingHorizontal: 16, borderRadius: 23, backgroundColor: "#F3F4F5" }}>
+            <View
+              style={{ paddingHorizontal: 16, borderRadius: 23, backgroundColor: tint("#F3F4F5") }}
+            >
               {group.map((row, index) => (
                 <Pressable
                   key={row.id}
@@ -1279,7 +1289,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
                       gap: 14,
                       minHeight: 61,
                       borderBottomWidth: index < group.length - 1 ? 1 : 0,
-                      borderBottomColor: "#E5E7E9",
+                      borderBottomColor: tint("#E5E7E9"),
                     },
                   ]}
                 >
@@ -1288,7 +1298,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
                       width: 29,
                       height: 29,
                       borderRadius: 7,
-                      backgroundColor: "#FFF",
+                      backgroundColor: tint("#FFF"),
                       alignItems: "center",
                       justifyContent: "center",
                     }}
@@ -1300,7 +1310,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
                     <Text style={s.small}>Local data</Text>
                   )}
                   {row.connected ? (
-                    <ChevronRight size={18} color="#A4A7AA" />
+                    <ChevronRight size={18} color={tint("#A4A7AA")} />
                   ) : (
                     <Text
                       style={{

@@ -15,7 +15,8 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-export const colors = {
+
+const light = {
   canvas: "#FCFCFC",
   card: "#FFFFFF",
   text: "#11191C",
@@ -29,89 +30,166 @@ export const colors = {
   orange: "#FDF0DF",
   danger: "#AA4A45",
 };
-export const s = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center" },
-  between: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  text: { color: colors.text, fontSize: 15, lineHeight: 23 },
-  muted: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-  small: { color: colors.muted, fontSize: 11, lineHeight: 17 },
-  label: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
-  title: { color: colors.text, fontSize: 23, fontWeight: "600", letterSpacing: -0.7 },
-  heading: { color: colors.text, fontSize: 16, fontWeight: "600", letterSpacing: -0.25 },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 23,
-    borderWidth: 0,
-    borderColor: colors.line,
-    padding: 20,
-  },
-  divider: { height: 1, backgroundColor: colors.line, marginVertical: 18 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 19,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: colors.text,
-    fontSize: 16,
-    backgroundColor: "#FFF",
-    minHeight: 45,
-  },
-  field: { gap: 7, marginBottom: 16 },
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 17,
-    minHeight: 42,
-    paddingVertical: 10,
-    borderRadius: 24,
-  },
-  primary: { backgroundColor: colors.blue },
-  secondary: { backgroundColor: "#F1F2F3" },
-  buttonText: { fontSize: 14, fontWeight: "600" },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    alignSelf: "flex-start",
-    backgroundColor: colors.canvas,
-  },
-  chipText: { fontSize: 10, fontWeight: "600", color: colors.muted },
-  iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.sky,
-  },
-  error: { padding: 16, borderRadius: 14, backgroundColor: "#FBEFED", marginVertical: 10, gap: 4 },
-  modalShade: {
-    flex: 1,
-    backgroundColor: "rgba(35,48,44,0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  sheet: {
-    backgroundColor: colors.canvas,
-    borderRadius: 26,
-    width: "100%",
-    maxWidth: 790,
-    maxHeight: "94%",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-});
+const dark: typeof light = {
+  canvas: "#0F1214",
+  card: "#181C1F",
+  text: "#E6EAEC",
+  muted: "#99A2A7",
+  line: "#2A2F33",
+  blue: "#1D4565",
+  blueDark: "#6DB5F2",
+  sky: "#172C3A",
+  green: "#1A3324",
+  lavender: "#2A2540",
+  orange: "#3A2C17",
+  danger: "#E8928C",
+};
+export type Scheme = "light" | "dark";
+let scheme: Scheme = "light";
+/** The current palette. Read it while rendering; applyScheme swaps the values in place. */
+export const colors = { ...light };
+
+const hex = (n: number) =>
+  Math.round(n * 255)
+    .toString(16)
+    .padStart(2, "0");
+/**
+ * A one-off light-theme color for the current scheme. In dark mode it keeps the hue and
+ * mirrors the lightness, so pale tints become dark surfaces and dark text becomes light.
+ */
+export function tint(color: string) {
+  if (scheme === "light") return color;
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color);
+  if (!match) return color;
+  const digits = match[1].length === 3 ? [...match[1]].map((d) => d + d).join("") : match[1];
+  const [r, g, b] = [0, 2, 4].map((i) => Number.parseInt(digits.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    l = (max + min) / 2,
+    d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  const hue =
+    d === 0 ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  // Light surfaces land between #1C and #2E; pale tints keep less of their saturation.
+  const nextL = l >= 0.5 ? 0.11 + (1 - l) * 0.9 : 1 - l * 0.9;
+  const nextS = l >= 0.5 ? sat * 0.6 : sat;
+  const c = (1 - Math.abs(2 * nextL - 1)) * nextS,
+    x = c * (1 - Math.abs((hue % 2) - 1)),
+    m = nextL - c / 2;
+  const [r1, g1, b1] =
+    hue < 1
+      ? [c, x, 0]
+      : hue < 2
+        ? [x, c, 0]
+        : hue < 3
+          ? [0, c, x]
+          : hue < 4
+            ? [0, x, c]
+            : hue < 5
+              ? [x, 0, c]
+              : [c, 0, x];
+  return `#${hex(r1 + m)}${hex(g1 + m)}${hex(b1 + m)}`;
+}
+
+const makeStyles = () =>
+  StyleSheet.create({
+    row: { flexDirection: "row", alignItems: "center" },
+    between: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    text: { color: colors.text, fontSize: 15, lineHeight: 23 },
+    muted: { color: colors.muted, fontSize: 14, lineHeight: 21 },
+    small: { color: colors.muted, fontSize: 11, lineHeight: 17 },
+    label: {
+      color: colors.muted,
+      fontSize: 10,
+      fontWeight: "700",
+      letterSpacing: 1.4,
+      textTransform: "uppercase",
+    },
+    title: { color: colors.text, fontSize: 23, fontWeight: "600", letterSpacing: -0.7 },
+    heading: { color: colors.text, fontSize: 16, fontWeight: "600", letterSpacing: -0.25 },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 23,
+      borderWidth: 0,
+      borderColor: colors.line,
+      padding: 20,
+    },
+    divider: { height: 1, backgroundColor: colors.line, marginVertical: 18 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.line,
+      borderRadius: 19,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      color: colors.text,
+      fontSize: 16,
+      backgroundColor: tint("#FFF"),
+      minHeight: 45,
+    },
+    field: { gap: 7, marginBottom: 16 },
+    button: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 17,
+      minHeight: 42,
+      paddingVertical: 10,
+      borderRadius: 24,
+    },
+    primary: { backgroundColor: colors.blue },
+    secondary: { backgroundColor: tint("#F1F2F3") },
+    buttonText: { fontSize: 14, fontWeight: "600" },
+    chip: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+      alignSelf: "flex-start",
+      backgroundColor: colors.canvas,
+    },
+    chipText: { fontSize: 10, fontWeight: "600", color: colors.muted },
+    iconBox: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.sky,
+    },
+    error: {
+      padding: 16,
+      borderRadius: 14,
+      backgroundColor: tint("#FBEFED"),
+      marginVertical: 10,
+      gap: 4,
+    },
+    modalShade: {
+      flex: 1,
+      backgroundColor: "rgba(35,48,44,0.25)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    sheet: {
+      backgroundColor: colors.canvas,
+      borderRadius: 26,
+      width: "100%",
+      maxWidth: 790,
+      maxHeight: "94%",
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+  });
+/** Shared styles for the current scheme; applyScheme rebuilds them in place. */
+export const s = { ...makeStyles() };
+/** Switch palettes. Call before rendering, then remount so captured styles refresh. */
+export function applyScheme(next: Scheme) {
+  if (next === scheme) return;
+  scheme = next;
+  Object.assign(colors, next === "dark" ? dark : light);
+  Object.assign(s, makeStyles());
+}
 export function Button({
   children,
   onPress,
@@ -179,7 +257,7 @@ export function IconButton({
           alignItems: "center",
           justifyContent: "center",
           borderRadius: 22,
-          backgroundColor: pressed ? colors.line : "#FFFFFF",
+          backgroundColor: pressed ? colors.line : tint("#FFFFFF"),
         },
       ]}
     >
@@ -190,9 +268,9 @@ export function IconButton({
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   return <View style={[s.card, style]}>{children}</View>;
 }
-export function Chip({ children, tint }: { children: ReactNode; tint?: string }) {
+export function Chip({ children, background }: { children: ReactNode; background?: string }) {
   return (
-    <View style={[s.chip, tint ? { backgroundColor: tint } : null]}>
+    <View style={[s.chip, background ? { backgroundColor: background } : null]}>
       <Text style={s.chipText}>{children}</Text>
     </View>
   );
@@ -282,7 +360,7 @@ export function Sheet({
                 width: 34,
                 height: 4,
                 borderRadius: 3,
-                backgroundColor: "#D8DBDE",
+                backgroundColor: tint("#D8DBDE"),
                 marginTop: 10,
               }}
             />
@@ -333,12 +411,12 @@ export function CheckRow({
           borderRadius: 5,
           borderWidth: 1,
           borderColor: checked ? colors.text : colors.line,
-          backgroundColor: checked ? colors.text : "#FFF",
+          backgroundColor: checked ? colors.text : tint("#FFF"),
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        {checked && <Check size={13} color="#FFF" />}
+        {checked && <Check size={13} color={tint("#FFF")} />}
       </View>
       <Text style={[s.text, { flex: 1 }]}>{label}</Text>
     </Pressable>
@@ -408,9 +486,9 @@ export function Mascot({
   variant?: "sky" | "sand" | "lilac";
 }) {
   const palette = {
-    sky: "#ECF5FA",
-    sand: "#FAF0DF",
-    lilac: "#F1ECF9",
+    sky: tint("#ECF5FA"),
+    sand: tint("#FAF0DF"),
+    lilac: tint("#F1ECF9"),
   }[variant];
   return (
     <View accessibilityLabel="OpenMuse capybara" style={{ width: size, height: size }}>

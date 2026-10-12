@@ -612,7 +612,7 @@ function ReviewDetail({ initial }: { initial: ActionProposal }) {
           <Text style={s.heading}>{action.title}</Text>
           <Text style={s.small}>{action.kind.replace(".", " · ")}</Text>
         </View>
-        <Chip tint={pending ? colors.lavender : colors.green}>
+        <Chip background={pending ? colors.lavender : colors.green}>
           {action.status.replace(/_/g, " ")}
         </Chip>
       </View>

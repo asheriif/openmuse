@@ -3,7 +3,7 @@ import { useContext, useState } from "react";
 import { ActivityIndicator, Linking, Text, View } from "react-native";
 import { z } from "zod";
 import { BrowserRunContext } from "./browser-tool-card";
-import { Card, colors, ErrorNotice, s } from "./ui";
+import { Card, colors, ErrorNotice, s, tint } from "./ui";
 
 const resultSchema = z.object({
   results: z.array(z.object({ url: z.url({ protocol: /^https?$/ }), title: z.string().nullish() })),
@@ -36,7 +36,13 @@ export function SearchToolCard({ result, loading }: { result: unknown; loading: 
   const count = sources.length;
   return (
     <Card
-      style={{ padding: 14, gap: 10, backgroundColor: "#EEEEF0", maxWidth: 440, width: "100%" }}
+      style={{
+        padding: 14,
+        gap: 10,
+        backgroundColor: tint("#EEEEF0"),
+        maxWidth: 440,
+        width: "100%",
+      }}
     >
       <View style={[s.row, { gap: 10 }]}>
         {working ? (
