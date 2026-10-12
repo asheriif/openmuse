@@ -64,7 +64,6 @@ test("concurrent browser imports import each download exactly once", async (t) =
     publicUrl: "http://localhost:8787",
     dataDir: directory,
     agentBackend: "sample",
-    intelligenceApiKey: "test-project-key-never-sent",
     googleRedirectUri: "http://localhost:8787/api/google/callback",
     allowedOrigins: [],
     workerUrl: `http://127.0.0.1:${address.port}`,

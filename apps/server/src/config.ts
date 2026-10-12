@@ -23,9 +23,10 @@ if (existsSync(".env")) {
           : "Unset them to use the .env values."),
     );
 }
-// Capture the full setup/activation funnel while preserving explicit SDK opt-outs
-// and any deployment-specific sampling rate. Config loads before runtime imports.
-process.env.COPILOTKIT_TELEMETRY_SAMPLE_RATE ??= "1";
+// CopilotKit's SDK sends usage events to its own servers unless opted out. Config loads
+// before runtime imports, so this is read when the SDK's telemetry client is created.
+process.env.COPILOTKIT_TELEMETRY_DISABLED = "true";
+process.env.DO_NOT_TRACK = "1";
 
 export interface Config {
   mode: "sample" | "live";
@@ -43,7 +44,6 @@ export interface Config {
   agentBackend: "sample" | "model" | "agui";
   agentUrl?: string;
   agentToken?: string;
-  intelligenceApiKey?: string;
   googleClientId?: string;
   googleClientSecret?: string;
   googleRedirectUri: string;
@@ -66,25 +66,9 @@ export type ComputerProvider = "docker" | "e2b-desktop";
 /** Pinned so live rankings do not shift when TypeSafe moves the `jev-latest` alias. */
 export const defaultJevModel = "jev-1.13.0";
 
-export const intelligenceKeyRequiredMessage =
-  "OpenMuse requires CPK_INTELLIGENCE_API_KEY. " +
-  "Run `npx copilotkit@latest login` and `npx copilotkit@latest project select`, " +
-  "then set the generated server-only key. " +
-  "See https://docs.copilotkit.ai/intelligence/connect-your-runtime";
-
 export function required(name: string, message: string, value = process.env[name]): string {
   if (!value?.trim()) throw new Error(message);
   return value.trim();
-}
-
-export function assertApiDeploymentConfig(
-  config: Config,
-): asserts config is Config & { intelligenceApiKey: string } {
-  required(
-    "CPK_INTELLIGENCE_API_KEY",
-    intelligenceKeyRequiredMessage,
-    config.intelligenceApiKey ?? "",
-  );
 }
 
 /** Accept a full worker URL, or host:port from a platform that omits the scheme. */
@@ -149,7 +133,6 @@ export function readConfig(): Config {
     agentBackend: backend,
     agentUrl: process.env.AGENT_URL,
     agentToken: process.env.AGENT_TOKEN,
-    intelligenceApiKey: required("CPK_INTELLIGENCE_API_KEY", intelligenceKeyRequiredMessage),
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     googleRedirectUri: `${publicUrl}/api/google/callback`,

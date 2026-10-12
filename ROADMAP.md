@@ -14,7 +14,7 @@ The release is a personal-agent alpha: delegate a job, inspect its plan, supply 
 ## Integration acceptance next
 
 - [ ] Live Google OAuth, mail, attachment, and calendar acceptance on real test accounts.
-- [ ] CopilotKit Intelligence Rich Threads persistence/replay and cross-device acceptance with a project key.
+- [ ] Live thread-list updates across devices for locally stored Rich Threads.
 - [ ] Live model acceptance for open-ended delegated jobs and source-based research.
 - [ ] Installed Android emulator/device smoke tests. Android bundles already export; iPhone simulator has been exercised.
 - [ ] OpenBot user/session bridge, routines, and computer backend. The disabled HTTP adapter is contract-tested; it is not a live connection.

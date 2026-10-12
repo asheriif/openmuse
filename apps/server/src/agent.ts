@@ -2,11 +2,11 @@ import "./config.ts";
 import { HttpAgent } from "@ag-ui/client";
 import {
   type AgentsFactory,
-  type CopilotKitIntelligence,
   CopilotRuntime,
   createCopilotHonoHandler,
 } from "@copilotkit/runtime/v2";
 import type { Auth } from "./auth.ts";
+import type { ThreadRunner } from "./chat-threads.ts";
 import type { Config } from "./config.ts";
 import { ConversationAgent } from "./engine/conversation.ts";
 import type { AgentService } from "./engine/service.ts";
@@ -29,7 +29,7 @@ export function makeRuntime(
   config: Config,
   service: AgentService,
   auth: Auth,
-  intelligence: CopilotKitIntelligence,
+  runner: ThreadRunner,
 ) {
   // Built on first use, then shared so live mode reuses one TypeSafe client across requests.
   let jevAdapter: JevAdapter | undefined;
@@ -55,16 +55,6 @@ export function makeRuntime(
               sharedJevAdapter(),
             ),
   });
-  const runtime = new CopilotRuntime({
-    agents,
-    intelligence,
-    // The shared CopilotKit sink carries this tag onto existing PostHog events.
-    telemetryProperties: { accessibility_title: "OpenMuse" },
-    identifyUser: async (request) => ({
-      id: await auth.owner(request.headers.get("authorization") ?? undefined),
-      name: "OpenMuse user",
-    }),
-    generateThreadNames: false,
-  });
+  const runtime = new CopilotRuntime({ agents, runner });
   return createCopilotHonoHandler({ runtime, basePath: "/api/copilotkit" });
 }

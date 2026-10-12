@@ -25,7 +25,6 @@ before(async () => {
     publicUrl: "http://localhost:8787",
     dataDir: directory,
     agentBackend: "sample",
-    intelligenceApiKey: "test-project-key-never-sent",
     googleRedirectUri: "http://localhost:8787/api/google/callback",
     allowedOrigins: ["http://localhost:8081"],
   };
@@ -72,7 +71,6 @@ test("file lookups reject malformed IDs instead of probing storage", async (t) =
     publicUrl: "http://localhost:8787",
     dataDir: dir,
     agentBackend: "sample",
-    intelligenceApiKey: "test-project-key-never-sent",
     googleRedirectUri: "http://localhost:8787/api/google/callback",
     allowedOrigins: [],
   };

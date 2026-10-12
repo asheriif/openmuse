@@ -1,7 +1,6 @@
 import "./config.ts";
 import { randomUUID } from "node:crypto";
 import { MessageSchema } from "@ag-ui/core";
-import { CopilotKitIntelligence } from "@copilotkit/runtime/v2";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
@@ -15,9 +14,10 @@ import { ActionService } from "./actions.ts";
 import { agentConfigured, makeRuntime } from "./agent.ts";
 import { createAuth } from "./auth.ts";
 import { BrowserService } from "./browser.ts";
+import { ThreadRunner } from "./chat-threads.ts";
 import { ComputerService, type DockerRunner } from "./computer.ts";
 import { computerRoutes } from "./computer-routes.ts";
-import { assertApiDeploymentConfig, type Config } from "./config.ts";
+import type { Config } from "./config.ts";
 import type { Store } from "./db.ts";
 import { agentRoutes } from "./engine/routes.ts";
 import { AgentService } from "./engine/service.ts";
@@ -32,7 +32,6 @@ export async function createApp(
   config: Config,
   options: { docker?: DockerRunner } = {},
 ) {
-  assertApiDeploymentConfig(config);
   const auth = await createAuth(db, config),
     files = new Files(db, config, auth),
     google = new GoogleAuth(db, config),
@@ -47,8 +46,8 @@ export async function createApp(
   const browser = new BrowserService(db, config, auth, files);
   const computer = new ComputerService(db, config, options.docker);
   const agent = new AgentService(db, config, workspace, files, actions, browser, computer);
-  const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
-  const runtime = makeRuntime(config, agent, auth, intelligence);
+  const threads = await ThreadRunner.open(db);
+  const runtime = makeRuntime(config, agent, auth, threads);
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -214,19 +213,25 @@ export async function createApp(
     });
     const main = await db.get<{ threadId: string }>(owner, "conversation-settings", "main");
     if (!main) throw new AppError("Main conversation could not be loaded", 503);
-    try {
-      await intelligence.getOrCreateThread({
-        threadId: main.threadId,
-        userId: owner,
-        agentId: "default",
-      });
-    } catch {
-      throw new AppError(
-        "Main conversation is unavailable. Check the Rich Threads connection and try again.",
-        502,
-      );
-    }
     return c.json({ threadId: main.threadId, existing: true });
+  });
+  // The runtime only serves thread renames and archiving through a hosted thread service.
+  const threadUpdate = z.object({
+    name: z.string().trim().min(1).max(200).optional(),
+    archived: z.boolean().optional(),
+  });
+  function savedThread(id: string) {
+    if (!threads.has(id)) throw new AppError("Conversation not found", 404);
+    return id;
+  }
+  app.patch("/api/copilotkit/threads/:id", async (c) => {
+    const id = savedThread(c.req.param("id"));
+    await threads.update(id, threadUpdate.parse(await c.req.json()));
+    return c.json({ ok: true });
+  });
+  app.post("/api/copilotkit/threads/:id/archive", async (c) => {
+    await threads.update(savedThread(c.req.param("id")), { archived: true });
+    return c.json({ ok: true });
   });
   app.get("/api/conversation", async (c) =>
     c.json((await db.get(c.get("owner"), "conversations", "default")) ?? { messages: [] }),

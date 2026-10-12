@@ -1,56 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  assertApiDeploymentConfig,
-  browserWorkerUrl,
-  type Config,
-  readConfig,
-  shadowedEnvKeys,
-} from "../apps/server/src/config.ts";
+import { browserWorkerUrl, readConfig, shadowedEnvKeys } from "../apps/server/src/config.ts";
 
-const sampleConfig: Config = {
-  mode: "sample",
-  port: 8787,
-  host: "127.0.0.1",
-  publicUrl: "http://localhost:8787",
-  dataDir: ".openmuse",
-  agentBackend: "sample",
-  googleRedirectUri: "http://localhost:8787/api/google/callback",
-  allowedOrigins: ["http://localhost:8081"],
-};
-
-function liveConfig(intelligenceApiKey?: string): Config {
-  return {
-    ...sampleConfig,
-    mode: "live",
-    agentBackend: "model",
-    intelligenceApiKey,
-  };
-}
-
-const missingKeyMessage =
-  "OpenMuse requires CPK_INTELLIGENCE_API_KEY. " +
-  "Run `npx copilotkit@latest login` and `npx copilotkit@latest project select`, " +
-  "then set the generated server-only key. " +
-  "See https://docs.copilotkit.ai/intelligence/connect-your-runtime";
-
-test("every API mode rejects a missing or blank Intelligence key", () => {
-  for (const mode of [sampleConfig, liveConfig()]) {
-    for (const key of [undefined, "", " \t\n"]) {
-      assert.throws(() => assertApiDeploymentConfig({ ...mode, intelligenceApiKey: key }), {
-        name: "Error",
-        message: missingKeyMessage,
-      });
-    }
-  }
-});
-
-test("every API mode accepts a non-empty Intelligence key", () => {
-  for (const mode of [sampleConfig, liveConfig()]) {
-    assert.doesNotThrow(() =>
-      assertApiDeploymentConfig({ ...mode, intelligenceApiKey: "test-project-key-never-sent" }),
-    );
-  }
+test("the API starts without a CopilotKit account and keeps SDK telemetry off", (t) => {
+  const previous = { ...process.env };
+  t.after(() => {
+    process.env = previous;
+  });
+  process.env.WORKSPACE_MODE = "sample";
+  process.env.HOST = "127.0.0.1";
+  delete process.env.CPK_INTELLIGENCE_API_KEY;
+  assert.equal(readConfig().mode, "sample");
+  assert.equal(process.env.COPILOTKIT_TELEMETRY_DISABLED, "true");
+  assert.equal(process.env.DO_NOT_TRACK, "1");
 });
 
 test("web search is enabled by default with an explicit opt-out", (t) => {
@@ -61,7 +23,6 @@ test("web search is enabled by default with an explicit opt-out", (t) => {
   process.env.WORKSPACE_MODE = "sample";
   process.env.AGENT_BACKEND = "model";
   process.env.HOST = "127.0.0.1";
-  process.env.CPK_INTELLIGENCE_API_KEY = "test-project-key-never-sent";
   delete process.env.WEB_SEARCH_ENABLED;
   assert.equal(readConfig().webSearchEnabled, true);
   for (const value of ["true", "", "1", "TRUE"]) {
@@ -77,10 +38,8 @@ test("Jev mode is off by default and validates explicit modes", async () => {
   const old = {
     JEV_MODE: process.env.JEV_MODE,
     TYPESAFE_API_KEY: process.env.TYPESAFE_API_KEY,
-    CPK_INTELLIGENCE_API_KEY: process.env.CPK_INTELLIGENCE_API_KEY,
   };
   try {
-    process.env.CPK_INTELLIGENCE_API_KEY = "test-project-key-never-sent";
     delete process.env.JEV_MODE;
     assert.equal(readConfig().jevMode, "off");
     process.env.JEV_MODE = "sample";
@@ -123,11 +82,9 @@ test("computer provider defaults to Docker and e2b-desktop requires a server-sid
     "E2B_API_KEY",
     "COMPUTER_E2B_TEMPLATE",
     "COMPUTER_DEPLOYMENT_ID",
-    "CPK_INTELLIGENCE_API_KEY",
   ];
   const old = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
   try {
-    process.env.CPK_INTELLIGENCE_API_KEY = "test-project-key-never-sent";
     for (const key of keys.slice(0, 5)) delete process.env[key];
     assert.equal(readConfig().computerProvider, "docker");
     process.env.COMPUTER_PROVIDER = "k8s";

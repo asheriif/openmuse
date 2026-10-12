@@ -49,7 +49,6 @@ for (const scenario of [
       dataDir: directory,
       agentBackend: "model",
       model: "openai/fixture",
-      intelligenceApiKey: "test-project-key-never-sent",
       googleRedirectUri: "http://localhost:8787/api/google/callback",
       allowedOrigins: [],
     });

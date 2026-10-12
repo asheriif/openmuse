@@ -1,119 +1,112 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { CopilotKitIntelligence } from "@copilotkit/runtime/v2";
+import { ɵGLOBAL_STORE } from "@copilotkit/runtime/v2";
 import { createApp } from "../apps/server/src/app.ts";
+import type { Config } from "../apps/server/src/config.ts";
 import { createStore, type Store } from "../apps/server/src/db.ts";
 
 let db: Store, directory: string, token: string;
 let app: Awaited<ReturnType<typeof createApp>>["app"];
 const headers = () => ({ Authorization: `Bearer ${token}`, "Content-Type": "application/json" });
-before(async () => {
-  directory = await mkdtemp(join(tmpdir(), "openmuse-rich-threads-"));
-  db = await createStore();
-  ({ app } = await createApp(db, {
-    mode: "sample",
-    port: 8787,
-    host: "127.0.0.1",
-    publicUrl: "http://localhost:8787",
-    dataDir: directory,
-    agentBackend: "sample",
-    googleRedirectUri: "http://localhost:8787/api/google/callback",
-    allowedOrigins: ["http://localhost:8081"],
-    intelligenceApiKey: "test-project-key-never-sent",
-  }));
+const config = (): Config => ({
+  mode: "sample",
+  port: 8787,
+  host: "127.0.0.1",
+  publicUrl: "http://localhost:8787",
+  dataDir: directory,
+  agentBackend: "sample",
+  googleRedirectUri: "http://localhost:8787/api/google/callback",
+  allowedOrigins: ["http://localhost:8081"],
+});
+async function signIn() {
   const session = await app.request("/api/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: "{}",
   });
   token = (await session.json()).token;
+}
+before(async () => {
+  directory = await mkdtemp(join(tmpdir(), "openmuse-rich-threads-"));
+  db = await createStore();
+  ({ app } = await createApp(db, config()));
+  await signIn();
 });
 after(async () => {
   await db.close();
   await rm(directory, { recursive: true, force: true });
 });
 
-test("main chat is provisioned for the authenticated owner before the first run", async (t) => {
-  const calls: Parameters<CopilotKitIntelligence["getOrCreateThread"]>[0][] = [];
-  t.mock.method(
-    CopilotKitIntelligence.prototype,
-    "getOrCreateThread",
-    async (input: Parameters<CopilotKitIntelligence["getOrCreateThread"]>[0]) => {
-      calls.push(input);
-      return { id: input.threadId };
-    },
-  );
+async function chat(threadId: string, content: string) {
+  const response = await app.request("/api/copilotkit/agent/default/run", {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      threadId,
+      runId: randomUUID(),
+      messages: [{ id: randomUUID(), role: "user", content }],
+      tools: [],
+      context: [],
+      state: {},
+      forwardedProps: {},
+    }),
+  });
+  assert.equal(response.status, 200, await response.clone().text());
+  // Reading the stream to the end waits for the run to finish.
+  return response.text();
+}
+async function listed(): Promise<{ id: string; name: string | null; archived: boolean }[]> {
+  const response = await app.request("/api/copilotkit/threads?agentId=default", {
+    headers: headers(),
+  });
+  assert.equal(response.status, 200, await response.clone().text());
+  return (await response.json()).threads;
+}
+async function saved(threadId: string) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (await db.get("system", "threads", threadId)) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.fail(`thread ${threadId} was not saved`);
+}
+
+test("the main chat id is stable for the owner without a hosted thread service", async () => {
+  assert.equal((await app.request("/api/main-thread")).status, 401);
   const first = await (await app.request("/api/main-thread", { headers: headers() })).json();
   const reopened = await (await app.request("/api/main-thread", { headers: headers() })).json();
   assert.equal(first.existing, true);
   assert.equal(reopened.threadId, first.threadId);
-  assert.ok(
-    calls.every(
-      (call) =>
-        call.userId === "local-user" &&
-        call.agentId === "default" &&
-        call.threadId === first.threadId,
-    ),
-  );
-  assert.equal(calls.length, 2);
 });
 
-test("a failed main-thread connection remains an error and does not create another id", async (t) => {
-  const before = await db.get("local-user", "conversation-settings", "main");
-  t.mock.method(CopilotKitIntelligence.prototype, "getOrCreateThread", async () => {
-    throw new Error("Platform unavailable");
-  });
-  assert.equal((await app.request("/api/main-thread", { headers: headers() })).status, 502);
-  assert.deepEqual(await db.get("local-user", "conversation-settings", "main"), before);
-});
-
-test("Rich Threads lists through CopilotKit, scopes by authenticated owner and preserves pagination", async (t) => {
-  const calls: Parameters<CopilotKitIntelligence["listThreads"]>[0][] = [];
-  t.mock.method(
-    CopilotKitIntelligence.prototype,
-    "listThreads",
-    async (input: Parameters<CopilotKitIntelligence["listThreads"]>[0]) => {
-      calls.push(input);
-      return {
-        threads: [{ id: "thread-1", name: "Trip planning" }],
-        joinCode: "test",
-        nextCursor: "page-2",
-      };
-    },
-  );
+test("thread routes require a session", async () => {
   assert.equal((await app.request("/api/copilotkit/threads?agentId=default")).status, 401);
-  assert.equal(calls.length, 0);
-  const result = await app.request(
-    "/api/copilotkit/threads?agentId=default&userId=forged&includeArchived=true&limit=20&cursor=page-1",
-    { headers: headers() },
-  );
-  assert.equal(result.status, 200, await result.clone().text());
-  assert.deepEqual(calls, [
-    {
-      userId: "local-user",
-      agentId: "default",
-      includeArchived: true,
-      limit: 20,
-      cursor: "page-1",
-    },
-  ]);
-  assert.equal((await result.json()).nextCursor, "page-2");
+  for (const [path, method] of [
+    ["/api/copilotkit/threads/thread-1", "PATCH"],
+    ["/api/copilotkit/threads/thread-1/archive", "POST"],
+  ])
+    assert.equal(
+      (
+        await app.request(path, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        })
+      ).status,
+      401,
+    );
 });
 
-test("native and web thread rename reaches the SDK without accepting a forged owner", async (t) => {
-  const calls: Parameters<CopilotKitIntelligence["updateThread"]>[0][] = [];
-  t.mock.method(
-    CopilotKitIntelligence.prototype,
-    "updateThread",
-    async (input: Parameters<CopilotKitIntelligence["updateThread"]>[0]) => {
-      calls.push(input);
-      return { id: input.threadId, name: input.updates.name ?? null };
-    },
-  );
-  const preflight = await app.request("/api/copilotkit/threads/thread-1", {
+test("conversations, names and archiving are saved in the database and survive a restart", async () => {
+  const threadId = randomUUID();
+  await chat(threadId, "Hello there");
+  await saved(threadId);
+  assert.ok((await listed()).some((thread) => thread.id === threadId));
+
+  const preflight = await app.request(`/api/copilotkit/threads/${threadId}`, {
     method: "OPTIONS",
     headers: {
       Origin: "http://localhost:8081",
@@ -122,79 +115,94 @@ test("native and web thread rename reaches the SDK without accepting a forged ow
     },
   });
   assert.match(preflight.headers.get("Access-Control-Allow-Methods") || "", /PATCH/);
-  const response = await app.request("/api/copilotkit/threads/thread-1", {
+  const renamed = await app.request(`/api/copilotkit/threads/${threadId}`, {
     method: "PATCH",
     headers: headers(),
-    body: JSON.stringify({ agentId: "default", userId: "forged", name: "Weekend plans" }),
+    body: JSON.stringify({ agentId: "default", name: "Weekend plans" }),
   });
-  assert.equal(response.status, 200, await response.clone().text());
-  assert.deepEqual(calls, [
-    {
-      threadId: "thread-1",
-      userId: "local-user",
-      agentId: "default",
-      updates: { name: "Weekend plans" },
-    },
-  ]);
-});
-
-test("archive is authenticated and routed to CopilotKit", async (t) => {
-  const calls: Parameters<CopilotKitIntelligence["archiveThread"]>[0][] = [];
-  t.mock.method(
-    CopilotKitIntelligence.prototype,
-    "archiveThread",
-    async (input: Parameters<CopilotKitIntelligence["archiveThread"]>[0]) => {
-      calls.push(input);
-    },
-  );
-  const response = await app.request("/api/copilotkit/threads/thread-1/archive", {
+  assert.equal(renamed.status, 200, await renamed.clone().text());
+  const archived = await app.request(`/api/copilotkit/threads/${threadId}/archive`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ agentId: "default" }),
   });
-  assert.equal(response.status, 200);
-  assert.deepEqual(calls, [{ threadId: "thread-1", userId: "local-user", agentId: "default" }]);
-});
-
-test("history retains rich tool messages and provider failures remain errors", async (t) => {
-  const messages = [
-    {
-      id: "assistant-1",
-      role: "assistant",
-      content: "Working on the form",
-      toolCalls: [
-        { id: "call-1", type: "function", function: { name: "delegate_task", arguments: "{}" } },
-      ],
-    },
-    { id: "tool-1", role: "tool", toolCallId: "call-1", content: '{"taskId":"task-1"}' },
-  ];
-  const calls: Parameters<CopilotKitIntelligence["getThreadMessages"]>[0][] = [];
-  t.mock.method(
-    CopilotKitIntelligence.prototype,
-    "getThreadMessages",
-    async (input: Parameters<CopilotKitIntelligence["getThreadMessages"]>[0]) => {
-      calls.push(input);
-      return { messages };
-    },
+  assert.equal(archived.status, 200);
+  const history = await (
+    await app.request(`/api/copilotkit/threads/${threadId}/messages`, { headers: headers() })
+  ).json();
+  assert.ok(
+    history.messages.some((message: { content?: string }) => message.content === "Hello there"),
   );
-  const history = await app.request("/api/copilotkit/threads/thread-1/messages?userId=forged", {
+
+  // A new process starts with an empty in-memory store and reloads from the database.
+  ɵGLOBAL_STORE.clear();
+  ({ app } = await createApp(db, config()));
+  await signIn();
+  const thread = (await listed()).find((item) => item.id === threadId);
+  assert.deepEqual(
+    { name: thread?.name, archived: thread?.archived },
+    { name: "Weekend plans", archived: true },
+  );
+  const restored = await (
+    await app.request(`/api/copilotkit/threads/${threadId}/messages`, { headers: headers() })
+  ).json();
+  assert.deepEqual(restored.messages, history.messages);
+
+  const unarchived = await app.request(`/api/copilotkit/threads/${threadId}`, {
+    method: "PATCH",
     headers: headers(),
+    body: JSON.stringify({ agentId: "default", archived: false }),
   });
-  assert.equal(history.status, 200);
-  assert.deepEqual((await history.json()).messages, messages);
-  assert.deepEqual(calls, [{ threadId: "thread-1", userId: "local-user" }]);
-  t.mock.method(CopilotKitIntelligence.prototype, "listThreads", async () => {
-    throw new Error("Platform unavailable");
-  });
-  assert.equal(
-    (await app.request("/api/copilotkit/threads?agentId=default", { headers: headers() })).status,
-    500,
+  assert.equal(unarchived.status, 200);
+  assert.equal((await listed()).find((item) => item.id === threadId)?.archived, false);
+
+  // Reopening the same database in one process must not duplicate the reloaded history.
+  const events = (
+    await (
+      await app.request(`/api/copilotkit/threads/${threadId}/events`, { headers: headers() })
+    ).json()
+  ).events;
+  ({ app } = await createApp(db, config()));
+  await signIn();
+  assert.deepEqual(
+    (
+      await (
+        await app.request(`/api/copilotkit/threads/${threadId}/events`, { headers: headers() })
+      ).json()
+    ).events,
+    events,
   );
 });
 
-test("workspace reports Rich Threads configuration without disclosing the project key", async () => {
+test("renaming or archiving an unknown conversation is a not-found error", async () => {
+  const rename = await app.request("/api/copilotkit/threads/missing-thread", {
+    method: "PATCH",
+    headers: headers(),
+    body: JSON.stringify({ agentId: "default", name: "Nope" }),
+  });
+  assert.equal(rename.status, 404);
+  const archive = await app.request("/api/copilotkit/threads/missing-thread/archive", {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ agentId: "default" }),
+  });
+  assert.equal(archive.status, 404);
+});
+
+test("the runtime's clear route does not wipe saved conversations", async () => {
+  const threadId = randomUUID();
+  await chat(threadId, "Keep this");
+  await saved(threadId);
+  const response = await app.request("/api/copilotkit/threads/clear", {
+    method: "POST",
+    headers: headers(),
+    body: "{}",
+  });
+  assert.ok(response.status < 300);
+  assert.ok((await listed()).some((thread) => thread.id === threadId));
+});
+
+test("workspace reports Rich Threads as enabled", async () => {
   const response = await app.request("/api/workspace", { headers: headers() });
-  const body = await response.text();
-  assert.equal(JSON.parse(body).runtime.richThreads, true);
-  assert.ok(!body.includes("test-project-key-never-sent"));
+  assert.equal((await response.json()).runtime.richThreads, true);
 });
